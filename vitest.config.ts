@@ -1,0 +1,32 @@
+import path from 'node:path';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./test/setup.ts'],
+
+    include: ['test/**/*.test.{ts,tsx}'],
+    exclude: [
+      '**/node_modules/**',
+      '**/e2e/**',
+      '**/playwright-report/**',
+      'src/**/*.test.{ts,tsx}',
+    ],
+
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: ['src/**/*.d.ts'],
+    },
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      'server-only': path.resolve(__dirname, './test/mocks/server-only.ts'),
+    },
+  },
+});
+

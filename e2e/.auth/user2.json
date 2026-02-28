@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "op_session",
+      "value": "05eb25d85bea50bf9341972269690e368b1257a14131ad9f1c22bb30bd1c503d",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

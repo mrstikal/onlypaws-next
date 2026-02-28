@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: onlypaws
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: onlypaws_next
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/dumps:/dumps:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onlypaws -d onlypaws_next"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - onlypaws_network
+
+  postgres_e2e:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: onlypaws
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_E2E:-change-me-e2e}
+      POSTGRES_DB: onlypaws_next_e2e
+    ports:
+      - "5437:5432"
+    volumes:
+      - postgres_data_e2e:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+      - ./database/dumps:/dumps:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U onlypaws -d onlypaws_next_e2e"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - onlypaws_network
+
+volumes:
+  postgres_data:
+  postgres_data_e2e:
+
+networks:
+  onlypaws_network:
+    driver: bridge

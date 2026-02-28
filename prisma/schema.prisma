@@ -1,0 +1,233 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model users {
+  id                BigInt         @id @default(autoincrement())
+  name              String         @db.VarChar(255)
+  email             String         @unique(map: "users_email_unique") @db.VarChar(255)
+  email_verified_at DateTime?      @db.Timestamp(0)
+  password          String         @db.VarChar(255)
+  remember_token    String?        @db.VarChar(100)
+  created_at        DateTime?      @db.Timestamp(0)
+  updated_at        DateTime?      @db.Timestamp(0)
+  role              String         @default("user") @db.VarChar(255)
+  comments          comments[]
+  likes             likes[]
+  pets              pets[]
+  sessions          sessions[]
+  subscriptions     subscriptions?
+}
+
+model pets {
+  id              BigInt    @id @default(autoincrement())
+  user_id         BigInt
+  breed_id        BigInt?
+  name            String    @db.VarChar(255)
+  age_years       Int?
+  age_months      Int?
+  bio             String?
+  profile_picture String?   @db.VarChar(255)
+  followers_count Int       @default(0)
+  posts_count     Int       @default(0)
+  likes_count     Int       @default(0)
+  comments_count  Int       @default(0)
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+  breeds          breeds?   @relation(fields: [breed_id], references: [id], onUpdate: NoAction, map: "pets_breed_id_foreign")
+  user            users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "pets_user_id_foreign")
+  posts           posts[]
+
+  @@index([breed_id, followers_count], map: "pets_breed_id_followers_count_index")
+  @@index([followers_count], map: "pets_followers_count_index")
+  @@index([likes_count], map: "pets_likes_count_index")
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "pets_name_trgm_idx", type: Gin)
+}
+
+model posts {
+  id                   BigInt              @id @default(autoincrement())
+  pet_id               BigInt
+  caption              String?
+  media_url            String              @db.VarChar(255)
+  media_type           String              @default("image") @db.VarChar(255)
+  likes_count          Int                 @default(0)
+  is_premium           Boolean             @default(false)
+  subscription_tier_id BigInt?
+  created_at           DateTime?           @db.Timestamp(0)
+  updated_at           DateTime?           @db.Timestamp(0)
+  comments_count       Int                 @default(0)
+  pet                  pets                @relation(fields: [pet_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "posts_pet_id_foreign")
+  subscription_tiers   subscription_tiers? @relation(fields: [subscription_tier_id], references: [id], onUpdate: NoAction, map: "posts_subscription_tier_id_foreign")
+
+  @@index([likes_count, id], map: "posts_likes_count_id_index")
+  @@index([pet_id, created_at], map: "posts_pet_id_created_at_index")
+  @@index([subscription_tier_id, is_premium], map: "posts_subscription_tier_id_is_premium_index")
+}
+
+model likes {
+  id            BigInt    @id @default(autoincrement())
+  likeable_type String    @db.VarChar(255)
+  likeable_id   BigInt
+  user_id       BigInt
+  created_at    DateTime? @db.Timestamp(0)
+  updated_at    DateTime? @db.Timestamp(0)
+  user          users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "likes_user_id_foreign")
+
+  @@unique([user_id, likeable_id, likeable_type], map: "likes_user_id_likeable_id_likeable_type_unique")
+  @@index([likeable_type, likeable_id], map: "likes_likeable_idx")
+  @@index([user_id, likeable_type, likeable_id], map: "likes_user_likeable_idx")
+}
+
+model comments {
+  id               BigInt     @id @default(autoincrement())
+  body             String
+  user_id          BigInt
+  commentable_type String     @db.VarChar(255)
+  commentable_id   BigInt
+  parent_id        BigInt?
+  likes_count      Int        @default(0)
+  created_at       DateTime?  @db.Timestamp(0)
+  updated_at       DateTime?  @db.Timestamp(0)
+  parent           comments?  @relation("children", fields: [parent_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "comments_parent_id_foreign")
+  children         comments[] @relation("children")
+  user             users      @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "comments_user_id_foreign")
+
+  @@index([parent_id])
+  @@index([commentable_type, commentable_id], map: "comments_commentable_idx")
+  @@index([commentable_type, commentable_id, parent_id], map: "comments_commentable_parent_idx")
+}
+
+model subscription_tiers {
+  id            BigInt          @id @default(autoincrement())
+  name          String          @db.VarChar(255)
+  slug          String          @unique(map: "subscription_tiers_slug_unique") @db.VarChar(255)
+  price_monthly Int             @default(0)
+  description   String?
+  created_at    DateTime?       @db.Timestamp(0)
+  updated_at    DateTime?       @db.Timestamp(0)
+  posts         posts[]
+  subscriptions subscriptions[]
+}
+
+model subscriptions {
+  id                   BigInt             @id @default(autoincrement())
+  user_id              BigInt             @unique(map: "subscriptions_user_id_unique")
+  subscription_tier_id BigInt
+  starts_at            DateTime           @default(now()) @db.Timestamp(0)
+  ends_at              DateTime?          @db.Timestamp(0)
+  created_at           DateTime?          @db.Timestamp(0)
+  updated_at           DateTime?          @db.Timestamp(0)
+  subscription_tier    subscription_tiers @relation(fields: [subscription_tier_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "subscriptions_subscription_tier_id_foreign")
+  user                 users              @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "subscriptions_user_id_foreign")
+
+  @@index([user_id, ends_at], map: "subscriptions_user_id_ends_at_index")
+}
+
+model breeds {
+  id          BigInt    @id @default(autoincrement())
+  name        String    @db.VarChar(255)
+  species     String    @db.VarChar(255)
+  api_id      String?   @db.VarChar(255)
+  description String?
+  created_at  DateTime? @db.Timestamp(0)
+  updated_at  DateTime? @db.Timestamp(0)
+  pets        pets[]
+
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "breeds_name_trgm_idx", type: Gin)
+  @@index([species], map: "breeds_species_index")
+}
+
+model cache {
+  key        String @id @db.VarChar(255)
+  value      String
+  expiration Int
+
+  @@index([expiration], map: "cache_expiration_index")
+}
+
+model cache_locks {
+  key        String @id @db.VarChar(255)
+  owner      String @db.VarChar(255)
+  expiration Int
+
+  @@index([expiration], map: "cache_locks_expiration_index")
+}
+
+model failed_jobs {
+  id         BigInt   @id @default(autoincrement())
+  uuid       String   @unique(map: "failed_jobs_uuid_unique") @db.VarChar(255)
+  connection String
+  queue      String
+  payload    String
+  exception  String
+  failed_at  DateTime @default(now()) @db.Timestamp(0)
+}
+
+model follows {
+  id              BigInt    @id @default(autoincrement())
+  follower_type   String    @db.VarChar(255)
+  follower_id     BigInt
+  followable_type String    @db.VarChar(255)
+  followable_id   BigInt
+  created_at      DateTime? @db.Timestamp(0)
+  updated_at      DateTime? @db.Timestamp(0)
+
+  @@unique([follower_id, follower_type, followable_id, followable_type], map: "follows_follower_id_follower_type_followable_id_followable_type")
+  @@index([follower_type, follower_id, followable_type, followable_id], map: "follows_composite_idx")
+  @@index([followable_type, followable_id], map: "follows_followable_idx")
+  @@index([follower_type, follower_id], map: "follows_follower_type_follower_id_index")
+}
+
+model job_batches {
+  id             String  @id @db.VarChar(255)
+  name           String  @db.VarChar(255)
+  total_jobs     Int
+  pending_jobs   Int
+  failed_jobs    Int
+  failed_job_ids String
+  options        String?
+  cancelled_at   Int?
+  created_at     Int
+  finished_at    Int?
+}
+
+model jobs {
+  id           BigInt @id @default(autoincrement())
+  queue        String @db.VarChar(255)
+  payload      String
+  attempts     Int    @db.SmallInt
+  reserved_at  Int?
+  available_at Int
+  created_at   Int
+
+  @@index([queue], map: "jobs_queue_index")
+}
+
+model migrations {
+  id        Int    @id @default(autoincrement())
+  migration String @db.VarChar(255)
+  batch     Int
+}
+
+model password_reset_tokens {
+  email      String    @id @db.VarChar(255)
+  token      String    @db.VarChar(255)
+  created_at DateTime? @db.Timestamp(0)
+}
+
+model sessions {
+  id            String  @id @db.VarChar(255)
+  user_id       BigInt?
+  ip_address    String? @db.VarChar(45)
+  user_agent    String?
+  payload       String
+  last_activity Int
+  users         users?  @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "sessions_user_id_foreign")
+
+  @@index([last_activity], map: "sessions_last_activity_index")
+  @@index([user_id], map: "sessions_user_id_index")
+}
